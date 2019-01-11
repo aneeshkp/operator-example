@@ -1,6 +1,5 @@
  
-operator-sdk build aneeshkp/operator-example:v0.0.6
-docker push aneeshkp/operator-example:v0.0.6
+operator-sdk build aneeshkp/operator-example:v0.0.6 && docker push aneeshkp/operator-example:v0.0.6
 
 
  kubectl create -f deploy/service_account.yaml 
