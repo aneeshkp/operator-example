@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"reflect"
+	"time"
 
 	examplev1alpha1 "github.com/aneeshkp/operator-example/pkg/apis/example/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -132,14 +133,16 @@ func (r *ReconcileAputturkind) Reconcile(request reconcile.Request) (reconcile.R
 		}
 		// Spec updated - return and requeue
 		log.Print(" Spec updated - return and requeue")
-		return reconcile.Result{Requeue: true}, nil
+		//need to give some time for Pods to get reschduled
+		return reconcile.Result{RequeueAfter: time.Second * 5}, nil
+		//return reconcile.Result{Requeue: true}, nil
 	}
 
 	// List the pods for this deployment
 	log.Print("Listing pods")
 	podList := &corev1.PodList{}
 
-	log.Printf("Listing pods size %d", podList.Size())
+	log.Printf("Listing all pods size %d", podList.Size())
 	labelSelector := labels.SelectorFromSet(labelsForAputturKind(instance.Name))
 	listOps := &client.ListOptions{Namespace: instance.Namespace, LabelSelector: labelSelector}
 	err = r.client.List(context.TODO(), listOps, podList)
@@ -147,13 +150,15 @@ func (r *ReconcileAputturkind) Reconcile(request reconcile.Request) (reconcile.R
 		log.Printf("Failed to list pods: %v", err)
 		return reconcile.Result{}, err
 	}
+	log.Printf("Listing label matched pods size %d", len(podList.Items))
+
 	podNames := getPodNames(podList.Items)
 
 	// Update status.PodNames if needed
 	log.Print("Listing pod names")
 	if !reflect.DeepEqual(podNames, instance.Status.PodNames) {
 		instance.Status.PodNames = podNames
-		err := r.client.Update(context.TODO(), instance)
+		err := r.client.Status().Update(context.TODO(), instance)
 		if err != nil {
 			log.Printf("failed to update node status: %v", err)
 			return reconcile.Result{}, err
@@ -164,7 +169,7 @@ func (r *ReconcileAputturkind) Reconcile(request reconcile.Request) (reconcile.R
 	log.Print("Update  ApGroup and Status")
 	if instance.Spec.Group != instance.Status.AppGroup {
 		instance.Status.AppGroup = instance.Spec.Group
-		err := r.client.Update(context.TODO(), instance)
+		err := r.client.Status().Update(context.TODO(), instance)
 		if err != nil {
 			log.Printf("failed to update group status: %v", err)
 			return reconcile.Result{}, err
@@ -181,7 +186,7 @@ func (r *ReconcileAputturkind) Reconcile(request reconcile.Request) (reconcile.R
 // a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
-// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
+// Result.Requeue is podListtrue, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileAputturkind) Reconcileold(request reconcile.Request) (reconcile.Result, error) {
 	log.Printf("Reconciling Aputturkind %s/%s\n", request.Namespace, request.Name)
 
